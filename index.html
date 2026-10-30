@@ -1,0 +1,1266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CampusSpend — Student Expense & Smart Saver</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js for sleek analytics -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Phosphor Icons for modern mobile UI -->
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              emerald: '#10b981',
+              neon: '#05ffa1',
+              violet: '#8b5cf6',
+              indigo: '#6366f1',
+              dark: '#0b0f19',
+              card: '#121829',
+              cardGlass: 'rgba(18, 24, 41, 0.75)'
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Glassmorphic UI styles and Custom Scrollbar */
+    body {
+      background: radial-gradient(circle at 15% 20%, #1e1b4b 0%, #0b0f19 55%, #050b14 100%);
+      min-height: 100vh;
+      color: #f1f5f9;
+      font-family: 'Inter', system-ui, sans-serif;
+    }
+
+    .glass-panel {
+      background: rgba(18, 24, 41, 0.65);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+    }
+
+    .glass-card-hover {
+      transition: all 0.25s ease;
+    }
+    .glass-card-hover:hover {
+      transform: translateY(-2px);
+      border-color: rgba(99, 102, 241, 0.3);
+      box-shadow: 0 12px 30px rgba(99, 102, 241, 0.15);
+    }
+
+    /* Android frame mockup styling */
+    .phone-mockup {
+      width: 100%;
+      max-width: 420px;
+      min-height: 840px;
+      border-radius: 44px;
+      border: 10px solid #1f293d;
+      box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.85), 0 0 25px rgba(99, 102, 241, 0.2);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .android-camera-punch {
+      width: 12px;
+      height: 12px;
+      background: #0b0f19;
+      border: 1.5px solid #232d42;
+      border-radius: 50%;
+    }
+
+    /* Custom thin scrollbar */
+    ::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(15, 23, 42, 0.5);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #6366f1;
+    }
+  </style>
+</head>
+<body class="flex flex-col items-center justify-start p-3 sm:p-6 text-slate-100">
+
+  <!-- Top Navigation & View Mode Controller -->
+  <header class="w-full max-w-5xl flex flex-wrap items-center justify-between gap-4 py-3 mb-4 px-2">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-500 via-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-emerald-500/20">
+        <i class="ph-bold ph-wallet text-xl text-white"></i>
+      </div>
+      <div>
+        <h1 class="text-xl font-bold tracking-tight bg-gradient-to-r from-emerald-400 via-indigo-300 to-violet-400 bg-clip-text text-transparent">
+          CampusSpend
+        </h1>
+        <p class="text-xs text-slate-400 font-medium">Student Pocket Money Tracker & AI Saver</p>
+      </div>
+    </div>
+
+    <!-- Layout Toggle & Settings -->
+    <div class="flex items-center gap-2 bg-slate-900/80 p-1.5 rounded-2xl border border-slate-800">
+      <button id="toggleFrameBtn" onclick="toggleLayoutMode()" class="px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 bg-indigo-600 text-white shadow-md transition-all">
+        <i class="ph-bold ph-device-mobile text-sm"></i>
+        <span id="frameModeLabel">Phone Frame</span>
+      </button>
+      <button id="headerBudgetBtn" onclick="openBudgetModal()" class="px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition flex items-center gap-1.5 hidden">
+        <i class="ph-bold ph-gear text-sm"></i>
+        <span>Budget Limit</span>
+      </button>
+      <button id="headerExportBtn" onclick="exportData()" title="Backup transactions" class="p-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-white hover:bg-slate-800 transition hidden">
+        <i class="ph-bold ph-download-simple"></i>
+      </button>
+      <button id="headerLogoutBtn" onclick="handleLogout()" title="Sign Out" class="px-2.5 py-1.5 rounded-xl text-xs font-semibold text-rose-400 hover:text-white hover:bg-rose-600/80 transition flex items-center gap-1 hidden">
+        <i class="ph-bold ph-sign-out text-sm"></i>
+        <span class="hidden sm:inline">Logout</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Container (Flips between Android Phone Mockup & Full Width Responsive Web App) -->
+  <main id="appContainer" class="phone-mockup glass-panel flex flex-col transition-all duration-300">
+    
+    <!-- Android Phone Top Status Bar (Only visible in frame mockup mode) -->
+    <div id="androidStatusBar" class="w-full pt-3 px-6 pb-2 flex items-center justify-between text-xs text-slate-400 select-none bg-slate-950/40 z-30">
+      <span id="liveClock" class="font-semibold text-slate-300 tracking-wider">12:30</span>
+      <div class="android-camera-punch"></div>
+      <div class="flex items-center gap-2">
+        <i class="ph-bold ph-wifi-high"></i>
+        <i class="ph-bold ph-battery-charging text-emerald-400"></i>
+      </div>
+    </div>
+
+    <!-- =========================================================
+         AUTH VIEW: LOGIN & SIGN UP OVERLAY
+         ========================================================= -->
+    <div id="authSection" class="flex-1 flex flex-col justify-center px-6 py-8 overflow-y-auto z-20">
+      <div class="text-center mb-6">
+        <div class="w-16 h-16 rounded-3xl bg-gradient-to-tr from-emerald-500 via-indigo-600 to-violet-500 flex items-center justify-center shadow-xl shadow-indigo-500/25 mx-auto mb-3 border border-white/10">
+          <i class="ph-bold ph-student text-3xl text-white"></i>
+        </div>
+        <h2 id="authHeading" class="text-2xl font-extrabold text-white tracking-tight">Welcome Back</h2>
+        <p id="authSubheading" class="text-xs text-slate-400 mt-1">Sign in to manage your campus allowance</p>
+      </div>
+
+      <!-- Mode Switcher Tabs (Sign In / Sign Up) -->
+      <div class="grid grid-cols-2 p-1 bg-slate-950/90 rounded-2xl border border-slate-800 text-xs font-semibold mb-5">
+        <button id="tabSignInBtn" type="button" onclick="switchAuthMode('signin')" class="py-2.5 rounded-xl bg-indigo-600 text-white shadow transition">
+          Login
+        </button>
+        <button id="tabSignUpBtn" type="button" onclick="switchAuthMode('signup')" class="py-2.5 rounded-xl text-slate-400 hover:text-white transition">
+          Sign Up
+        </button>
+      </div>
+
+      <!-- Auth Form -->
+      <form id="authForm" onsubmit="handleAuthSubmit(event)" class="space-y-3.5">
+        <!-- Full Name (Only for Sign Up) -->
+        <div id="nameFieldGroup" class="hidden">
+          <label class="text-[11px] uppercase tracking-wider text-slate-400 font-bold block mb-1">Student Name</label>
+          <div class="relative">
+            <i class="ph-bold ph-user absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500"></i>
+            <input type="text" id="authName" placeholder="e.g. Rahul Sharma" class="w-full pl-10 pr-4 py-2.5 bg-slate-950/90 border border-slate-800 rounded-xl text-sm text-white focus:outline-none focus:border-indigo-500">
+          </div>
+        </div>
+
+        <!-- Email Input -->
+        <div>
+          <label class="text-[11px] uppercase tracking-wider text-slate-400 font-bold block mb-1">Campus / Personal Email</label>
+          <div class="relative">
+            <i class="ph-bold ph-envelope-simple absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500"></i>
+            <input type="email" id="authEmail" required placeholder="student@campus.edu" class="w-full pl-10 pr-4 py-2.5 bg-slate-950/90 border border-slate-800 rounded-xl text-sm text-white focus:outline-none focus:border-indigo-500">
+          </div>
+        </div>
+
+        <!-- Password Input -->
+        <div>
+          <label class="text-[11px] uppercase tracking-wider text-slate-400 font-bold block mb-1">Password</label>
+          <div class="relative">
+            <i class="ph-bold ph-lock-key absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500"></i>
+            <input type="password" id="authPassword" required minlength="4" placeholder="••••••••" class="w-full pl-10 pr-10 py-2.5 bg-slate-950/90 border border-slate-800 rounded-xl text-sm text-white focus:outline-none focus:border-indigo-500">
+            <button type="button" onclick="togglePasswordVisibility()" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300">
+              <i id="pwdToggleIcon" class="ph-bold ph-eye"></i>
+            </button>
+          </div>
+        </div>
+
+        <button type="submit" id="authSubmitBtn" class="w-full py-3 mt-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-bold text-sm shadow-lg shadow-indigo-600/30 active:scale-[0.99] transition flex items-center justify-center gap-2">
+          <span>Login to Dashboard</span>
+          <i class="ph-bold ph-arrow-right"></i>
+        </button>
+      </form>
+
+      <!-- Divider -->
+      <div class="relative flex py-5 items-center">
+        <div class="flex-grow border-t border-slate-800"></div>
+        <span class="flex-shrink mx-3 text-[10px] uppercase tracking-widest text-slate-500 font-semibold">Or Quick Access</span>
+        <div class="flex-grow border-t border-slate-800"></div>
+      </div>
+
+      <!-- Guest Demo Login -->
+      <button type="button" onclick="loginAsGuest()" class="w-full py-2.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-800 text-slate-300 font-semibold text-xs transition flex items-center justify-center gap-2">
+        <i class="ph-bold ph-lightning text-amber-400 text-sm"></i>
+        <span>Continue with Demo Scholar Account</span>
+      </button>
+    </div>
+
+    <!-- =========================================================
+         MAIN APP CONTENT AREA (Visible after Login)
+         ========================================================= -->
+    <div class="flex-1 flex flex-col overflow-y-auto px-4 py-4 pb-24 space-y-5 hidden" id="mainScrollableArea">
+      
+      <!-- Greeting & Month Switcher -->
+      <div class="flex items-center justify-between">
+        <div>
+          <span class="text-xs uppercase tracking-wider text-slate-400 font-semibold">Campus Term Budget</span>
+          <h2 class="text-lg font-bold text-white flex items-center gap-1.5">
+            Hey, <span id="userGreetingName">Scholar</span> <span class="text-base">🎓</span>
+          </h2>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <div class="bg-indigo-950/60 border border-indigo-500/30 text-indigo-300 text-xs px-2.5 py-1 rounded-full font-medium flex items-center gap-1">
+            <i class="ph-fill ph-calendar-blank"></i>
+            <span id="currentMonthBadge">October 2026</span>
+          </div>
+          <button onclick="handleLogout()" title="Logout" class="p-1.5 rounded-full bg-slate-900 border border-slate-800 text-rose-400 hover:bg-rose-950/50 transition">
+            <i class="ph-bold ph-power text-xs"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Pocket Money Overview Card -->
+      <div class="relative overflow-hidden rounded-3xl p-5 bg-gradient-to-br from-indigo-900/60 via-slate-900/90 to-brand-card border border-indigo-500/20 shadow-2xl">
+        <!-- Glow highlights -->
+        <div class="absolute -right-10 -top-10 w-36 h-36 bg-indigo-500/15 rounded-full blur-2xl pointer-events-none"></div>
+        <div class="absolute -left-10 -bottom-10 w-36 h-36 bg-emerald-500/15 rounded-full blur-2xl pointer-events-none"></div>
+
+        <div class="relative z-10 flex flex-col space-y-4">
+          <div class="flex justify-between items-start">
+            <div>
+              <p class="text-xs text-slate-400 font-medium tracking-wide">AVAILABLE POCKET MONEY</p>
+              <h3 id="remainingMoneyText" class="text-3xl font-black tracking-tight text-white mt-0.5">₹0</h3>
+            </div>
+            <div id="budgetStatusBadge" class="text-[11px] px-2.5 py-1 rounded-lg font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
+              <i class="ph-fill ph-check-circle"></i> On Track
+            </div>
+          </div>
+
+          <!-- Progress Bar & Alert Meter -->
+          <div class="space-y-1.5">
+            <div class="flex justify-between text-xs text-slate-300 font-medium">
+              <span>Spent: <span id="totalSpentText" class="text-white font-bold">₹0</span></span>
+              <span>Total Cap: <span id="totalBudgetText" class="text-slate-400">₹0</span></span>
+            </div>
+            <div class="w-full bg-slate-800/90 rounded-full h-2.5 overflow-hidden p-0.5 border border-slate-700/50">
+              <div id="budgetProgressBar" class="bg-gradient-to-r from-emerald-400 via-indigo-400 to-rose-500 h-full rounded-full transition-all duration-700 w-0"></div>
+            </div>
+            <p id="budgetWarningNote" class="text-[11px] text-slate-400 text-right">0% of monthly limit consumed</p>
+          </div>
+
+          <!-- Inflow & Outflow Mini Pills -->
+          <div class="grid grid-cols-2 gap-2 pt-1 border-t border-slate-800/80">
+            <div class="flex items-center gap-2.5 bg-slate-900/60 p-2.5 rounded-2xl border border-slate-800">
+              <div class="w-7 h-7 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+                <i class="ph-bold ph-arrow-down-left"></i>
+              </div>
+              <div class="truncate">
+                <p class="text-[10px] text-slate-400">Allowance/Income</p>
+                <p id="totalIncomeText" class="text-xs font-bold text-slate-200">₹0</p>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-2.5 bg-slate-900/60 p-2.5 rounded-2xl border border-slate-800">
+              <div class="w-7 h-7 rounded-xl bg-rose-500/20 text-rose-400 flex items-center justify-center shrink-0">
+                <i class="ph-bold ph-arrow-up-right"></i>
+              </div>
+              <div class="truncate">
+                <p class="text-[10px] text-slate-400">Total Spent</p>
+                <p id="subTotalExpenseText" class="text-xs font-bold text-slate-200">₹0</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Action Buttons -->
+      <div class="grid grid-cols-2 gap-3">
+        <button onclick="openTransactionModal('expense')" class="flex items-center justify-center gap-2 bg-gradient-to-r from-rose-500/80 to-rose-600 hover:from-rose-500 hover:to-rose-700 text-white font-semibold py-3 px-4 rounded-2xl shadow-lg shadow-rose-900/30 active:scale-95 transition">
+          <i class="ph-bold ph-minus-circle text-lg"></i>
+          <span class="text-sm">Log Expense</span>
+        </button>
+        <button onclick="openTransactionModal('income')" class="flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-500/80 to-emerald-600 hover:from-emerald-500 hover:to-emerald-700 text-white font-semibold py-3 px-4 rounded-2xl shadow-lg shadow-emerald-900/30 active:scale-95 transition">
+          <i class="ph-bold ph-plus-circle text-lg"></i>
+          <span class="text-sm">Add Pocket Money</span>
+        </button>
+      </div>
+
+      <!-- AI Student Saver Tip of the Day (Interactive Carousel) -->
+      <div class="glass-panel rounded-3xl p-4 border border-violet-500/20 bg-gradient-to-r from-violet-950/30 via-slate-900/50 to-indigo-950/20">
+        <div class="flex items-center justify-between mb-2">
+          <div class="flex items-center gap-2 text-violet-400 font-bold text-xs uppercase tracking-wider">
+            <i class="ph-fill ph-sparkle text-sm text-yellow-400"></i>
+            <span>Campus Saver AI Tip</span>
+          </div>
+          <button onclick="nextSmartTip()" class="text-[11px] text-indigo-300 hover:text-white flex items-center gap-1 bg-slate-800/80 px-2 py-0.5 rounded-lg border border-slate-700">
+            <span>Next</span> <i class="ph-bold ph-arrow-right"></i>
+          </button>
+        </div>
+        <div id="tipContentContainer" class="transition-opacity duration-200">
+          <h4 id="tipTitle" class="text-sm font-semibold text-slate-100 flex items-center gap-1.5">
+            🍕 Food Hack: The Cooktop Rule
+          </h4>
+          <p id="tipDescription" class="text-xs text-slate-400 mt-1 leading-relaxed">
+            Late-night canteen snacks add up to ~₹1,800/month. Keep a mini electric kettle or share ready oats & eggs with hostel roomies.
+          </p>
+          <div class="flex items-center justify-between mt-2 pt-2 border-t border-slate-800/60 text-[11px]">
+            <span class="text-emerald-400 font-semibold" id="tipSavings">Potential Save: ~₹1,500/mo</span>
+            <button onclick="applyTipChallenge()" class="text-violet-300 hover:underline">Accept Challenge ⚡</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Visual Analytics & Category Breakdown -->
+      <div class="glass-panel rounded-3xl p-4 space-y-3">
+        <div class="flex items-center justify-between">
+          <h3 class="text-sm font-bold text-white flex items-center gap-2">
+            <i class="ph-bold ph-chart-pie-slice text-indigo-400"></i>
+            Expense Breakdown
+          </h3>
+          <span class="text-[11px] text-slate-400" id="totalTransCount">0 logs</span>
+        </div>
+        
+        <!-- Chart Canvas Container -->
+        <div class="relative h-44 w-full flex items-center justify-center">
+          <canvas id="categoryChart"></canvas>
+          <div id="emptyChartPlaceholder" class="absolute inset-0 flex flex-col items-center justify-center text-slate-500 text-xs hidden">
+            <i class="ph-duotone ph-receipt text-3xl mb-1 text-slate-600"></i>
+            No expenses logged yet
+          </div>
+        </div>
+
+        <!-- Top categories progress indicators -->
+        <div id="categoryBarsList" class="space-y-2 pt-1">
+          <!-- Dynamically inserted -->
+        </div>
+      </div>
+
+      <!-- Transaction History Section -->
+      <div class="glass-panel rounded-3xl p-4 space-y-3">
+        <div class="flex items-center justify-between">
+          <h3 class="text-sm font-bold text-white flex items-center gap-2">
+            <i class="ph-bold ph-clock-counter-clockwise text-emerald-400"></i>
+            Recent Activity
+          </h3>
+          <!-- Category Filter dropdown -->
+          <select id="filterCategory" onchange="renderTransactions()" class="bg-slate-900 border border-slate-700 text-slate-300 text-xs rounded-xl px-2 py-1 outline-none focus:border-indigo-500">
+            <option value="all">All Categories</option>
+            <option value="food">Food & Mess</option>
+            <option value="snacks">Canteen & Snacks</option>
+            <option value="books">Books & Stationery</option>
+            <option value="rent">Rent & Fee</option>
+            <option value="travel">Travel & Fuel</option>
+            <option value="fun">Fun & Outings</option>
+            <option value="recharge">Mobile & Wifi</option>
+            <option value="income">Income / Allowance</option>
+          </select>
+        </div>
+
+        <!-- Transactions List -->
+        <div id="transactionList" class="space-y-2">
+          <!-- Dynamic transaction cards -->
+        </div>
+      </div>
+
+      <!-- Emergency Survival Calculator for Students -->
+      <div class="glass-panel rounded-3xl p-4 space-y-2 border border-slate-800">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+            <i class="ph-bold ph-hourglass-high text-amber-400"></i>
+            Daily Survival Budget
+          </span>
+          <span id="dailyBurnAllowance" class="text-xs font-extrabold text-amber-400">₹0 / day</span>
+        </div>
+        <p class="text-[11px] text-slate-400 leading-normal">
+          Based on days left until next month's allowance, this is your safe daily spending limit to avoid going broke before exams!
+        </p>
+      </div>
+
+    </div>
+
+    <!-- Android Bottom Navigation Bar (Hidden when logged out) -->
+    <nav id="bottomNavBar" class="absolute bottom-0 left-0 right-0 h-16 bg-slate-950/90 backdrop-blur-md border-t border-slate-800 flex items-center justify-around px-4 z-20 hidden">
+      <button onclick="scrollToTop()" class="flex flex-col items-center gap-1 text-emerald-400">
+        <i class="ph-fill ph-house text-lg"></i>
+        <span class="text-[10px] font-semibold">Home</span>
+      </button>
+      <button onclick="openTransactionModal('expense')" class="w-11 h-11 -mt-5 rounded-2xl bg-gradient-to-tr from-emerald-500 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-indigo-500/40 active:scale-95 transition">
+        <i class="ph-bold ph-plus text-xl"></i>
+      </button>
+      <button onclick="openBudgetModal()" class="flex flex-col items-center gap-1 text-slate-400 hover:text-white">
+        <i class="ph-bold ph-sliders text-lg"></i>
+        <span class="text-[10px] font-medium">Settings</span>
+      </button>
+    </nav>
+  </main>
+
+  <!-- Modal: Add / Log Transaction -->
+  <div id="transactionModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center hidden p-0 sm:p-4 transition-opacity">
+    <div class="glass-panel w-full max-w-md bg-slate-900 border border-slate-700 rounded-t-3xl sm:rounded-3xl p-5 space-y-4 max-h-[90vh] overflow-y-auto animate-in fade-in slide-in-from-bottom duration-200">
+      <div class="flex justify-between items-center pb-2 border-b border-slate-800">
+        <h3 id="modalTitle" class="text-base font-bold text-white flex items-center gap-2">
+          <i class="ph-bold ph-receipt text-indigo-400"></i> Log Transaction
+        </h3>
+        <button onclick="closeTransactionModal()" class="text-slate-400 hover:text-white text-lg p-1">
+          <i class="ph-bold ph-x"></i>
+        </button>
+      </div>
+
+      <!-- Type Switcher (Expense / Income) -->
+      <div class="grid grid-cols-2 p-1 bg-slate-950 rounded-2xl border border-slate-800 text-xs font-semibold">
+        <button id="typeExpenseBtn" type="button" onclick="setTransactionType('expense')" class="py-2 rounded-xl bg-rose-600 text-white transition">Expense</button>
+        <button id="typeIncomeBtn" type="button" onclick="setTransactionType('income')" class="py-2 rounded-xl text-slate-400 hover:text-white transition">Pocket Inflow</button>
+      </div>
+
+      <form id="transactionForm" onsubmit="handleTransactionSubmit(event)" class="space-y-3">
+        <!-- Amount Input -->
+        <div>
+          <label class="text-[11px] uppercase tracking-wider text-slate-400 font-bold block mb-1">Amount (₹)</label>
+          <div class="relative">
+            <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-base">₹</span>
+            <input type="number" step="any" min="1" id="txAmount" required placeholder="0.00" class="w-full pl-8 pr-4 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-lg font-bold text-white focus:outline-none focus:border-indigo-500">
+          </div>
+        </div>
+
+        <!-- Category Picker -->
+        <div id="categoryGroup">
+          <label class="text-[11px] uppercase tracking-wider text-slate-400 font-bold block mb-1">Campus Category</label>
+          <select id="txCategory" class="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-sm text-slate-200 focus:outline-none focus:border-indigo-500">
+            <option value="food">🍱 Mess & Meals</option>
+            <option value="snacks">☕ Canteen & Midnight Snacks</option>
+            <option value="books">📚 Books, Xerox & Stationery</option>
+            <option value="rent">🏠 Hostel Fee / Room Rent</option>
+            <option value="travel">🚌 Auto, Metro & Bike Fuel</option>
+            <option value="fun">🎬 Movie, Outing & Parties</option>
+            <option value="recharge">📱 Mobile Recharge & WiFi</option>
+            <option value="other">📦 Other Needs</option>
+          </select>
+        </div>
+
+        <!-- Description Note -->
+        <div>
+          <label class="text-[11px] uppercase tracking-wider text-slate-400 font-bold block mb-1">What was it for?</label>
+          <input type="text" id="txNote" placeholder="e.g. Canteen chai, xerox printouts, laundry..." required class="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-sm text-slate-200 focus:outline-none focus:border-indigo-500">
+        </div>
+
+        <!-- Date -->
+        <div>
+          <label class="text-[11px] uppercase tracking-wider text-slate-400 font-bold block mb-1">Date</label>
+          <input type="date" id="txDate" class="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-sm text-slate-200 focus:outline-none focus:border-indigo-500">
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="pt-2 flex gap-3">
+          <button type="button" onclick="closeTransactionModal()" class="w-1/2 py-2.5 rounded-xl border border-slate-700 text-slate-300 text-sm font-semibold hover:bg-slate-800 transition">
+            Cancel
+          </button>
+          <button type="submit" class="w-1/2 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold shadow-lg shadow-indigo-600/30 transition">
+            Save Entry
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Budget Setting Limit -->
+  <div id="budgetModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+    <div class="glass-panel w-full max-w-sm bg-slate-900 border border-slate-700 rounded-3xl p-5 space-y-4">
+      <div class="flex justify-between items-center pb-2 border-b border-slate-800">
+        <h3 class="text-base font-bold text-white flex items-center gap-2">
+          <i class="ph-bold ph-sliders text-indigo-400"></i> Set Monthly Allowance
+        </h3>
+        <button onclick="closeBudgetModal()" class="text-slate-400 hover:text-white p-1">
+          <i class="ph-bold ph-x"></i>
+        </button>
+      </div>
+
+      <p class="text-xs text-slate-400 leading-relaxed">
+        Set your monthly pocket money or cap from parents/stipend. CampusSpend will warn you when you pass 80% and 100%.
+      </p>
+
+      <div class="space-y-3">
+        <div>
+          <label class="text-[11px] uppercase tracking-wider text-slate-400 font-bold block mb-1">Monthly Pocket Allowance (₹)</label>
+          <input type="number" id="budgetLimitInput" min="100" class="w-full px-4 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-lg font-bold text-white focus:outline-none focus:border-indigo-500" placeholder="e.g. 6000">
+        </div>
+
+        <button onclick="saveBudgetLimit()" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-xl text-sm transition shadow-lg shadow-emerald-700/30">
+          Update Allowance
+        </button>
+        <button onclick="resetAllDemoData()" class="w-full py-2 bg-slate-800/80 hover:bg-rose-950/50 hover:text-rose-400 text-slate-400 font-medium rounded-xl text-xs transition border border-slate-700">
+          Load Sample Student Data
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification message box (replaces alert) -->
+  <div id="toastNotification" class="fixed top-6 right-6 z-50 transform translate-y-[-100px] opacity-0 transition-all duration-300 glass-panel px-4 py-3 rounded-2xl flex items-center gap-3 border border-indigo-500/40 text-xs font-semibold text-white shadow-2xl">
+    <i id="toastIcon" class="ph-bold ph-check-circle text-emerald-400 text-lg"></i>
+    <span id="toastMessage">Action completed!</span>
+  </div>
+
+  <script>
+    /* =========================================================
+       Authentication & State Management
+       ========================================================= */
+    const USERS_LIST_KEY = 'campusspend_users_v2';
+    const ACTIVE_USER_KEY = 'campusspend_session_user_v2';
+    const BASE_STORAGE_KEY = 'campusspend_transactions_v2';
+    const BASE_BUDGET_KEY = 'campusspend_monthly_budget_v2';
+
+    let authMode = 'signin'; // 'signin' or 'signup'
+    let currentUser = null;
+    let currentTransactionType = 'expense';
+    let isPhoneFrame = true;
+    let chartInstance = null;
+
+    // Helper: Get user-scoped storage keys
+    function getStorageKey() {
+      return currentUser ? `${BASE_STORAGE_KEY}_${currentUser.email}` : BASE_STORAGE_KEY;
+    }
+
+    function getBudgetKey() {
+      return currentUser ? `${BASE_BUDGET_KEY}_${currentUser.email}` : BASE_BUDGET_KEY;
+    }
+
+    function getRegisteredUsers() {
+      try {
+        return JSON.parse(localStorage.getItem(USERS_LIST_KEY)) || [];
+      } catch (e) {
+        return [];
+      }
+    }
+
+    function switchAuthMode(mode) {
+      authMode = mode;
+      const signInBtn = document.getElementById('tabSignInBtn');
+      const signUpBtn = document.getElementById('tabSignUpBtn');
+      const nameGroup = document.getElementById('nameFieldGroup');
+      const nameInput = document.getElementById('authName');
+      const heading = document.getElementById('authHeading');
+      const subheading = document.getElementById('authSubheading');
+      const submitBtn = document.getElementById('authSubmitBtn');
+
+      if (mode === 'signup') {
+        signUpBtn.className = 'py-2.5 rounded-xl bg-indigo-600 text-white shadow transition';
+        signInBtn.className = 'py-2.5 rounded-xl text-slate-400 hover:text-white transition';
+        nameGroup.classList.remove('hidden');
+        nameInput.required = true;
+        heading.textContent = 'Create Scholar Account';
+        subheading.textContent = 'Start tracking your pocket allowance & savings';
+        submitBtn.innerHTML = `<span>Sign Up & Start</span> <i class="ph-bold ph-user-plus"></i>`;
+      } else {
+        signInBtn.className = 'py-2.5 rounded-xl bg-indigo-600 text-white shadow transition';
+        signUpBtn.className = 'py-2.5 rounded-xl text-slate-400 hover:text-white transition';
+        nameGroup.classList.add('hidden');
+        nameInput.required = false;
+        heading.textContent = 'Welcome Back';
+        subheading.textContent = 'Sign in to manage your campus allowance';
+        submitBtn.innerHTML = `<span>Login to Dashboard</span> <i class="ph-bold ph-arrow-right"></i>`;
+      }
+    }
+
+    function togglePasswordVisibility() {
+      const pwdInput = document.getElementById('authPassword');
+      const icon = document.getElementById('pwdToggleIcon');
+      if (pwdInput.type === 'password') {
+        pwdInput.type = 'text';
+        icon.className = 'ph-bold ph-eye-slash';
+      } else {
+        pwdInput.type = 'password';
+        icon.className = 'ph-bold ph-eye';
+      }
+    }
+
+    function handleAuthSubmit(e) {
+      e.preventDefault();
+      const name = document.getElementById('authName').value.trim();
+      const email = document.getElementById('authEmail').value.trim().toLowerCase();
+      const password = document.getElementById('authPassword').value;
+
+      const users = getRegisteredUsers();
+
+      if (authMode === 'signup') {
+        if (!name) {
+          showToast('Please enter your name', true);
+          return;
+        }
+        if (users.some(u => u.email === email)) {
+          showToast('Account already exists! Please login.', true);
+          switchAuthMode('signin');
+          return;
+        }
+        const newUser = { name, email, password };
+        users.push(newUser);
+        localStorage.setItem(USERS_LIST_KEY, JSON.stringify(users));
+        completeLogin({ name: newUser.name, email: newUser.email }, 'Account created! Welcome aboard 🎉');
+      } else {
+        const found = users.find(u => u.email === email && u.password === password);
+        if (!found) {
+          showToast('Invalid email or password!', true);
+          return;
+        }
+        completeLogin({ name: found.name, email: found.email }, `Welcome back, ${found.name.split(' ')[0]}!`);
+      }
+    }
+
+    function loginAsGuest() {
+      completeLogin({ name: 'Scholar', email: 'demo@campusspend.edu' }, 'Logged into Demo Scholar Account!');
+    }
+
+    function completeLogin(userObj, toastMsg) {
+      currentUser = userObj;
+      localStorage.setItem(ACTIVE_USER_KEY, JSON.stringify(currentUser));
+      document.getElementById('authForm').reset();
+      syncAuthViewState();
+      if (toastMsg) showToast(toastMsg);
+    }
+
+    function handleLogout() {
+      currentUser = null;
+      localStorage.removeItem(ACTIVE_USER_KEY);
+      syncAuthViewState();
+      showToast('Logged out safely');
+    }
+
+    function syncAuthViewState() {
+      const authSec = document.getElementById('authSection');
+      const mainArea = document.getElementById('mainScrollableArea');
+      const bottomNav = document.getElementById('bottomNavBar');
+      const headerBudgetBtn = document.getElementById('headerBudgetBtn');
+      const headerExportBtn = document.getElementById('headerExportBtn');
+      const headerLogoutBtn = document.getElementById('headerLogoutBtn');
+
+      if (currentUser) {
+        authSec.classList.add('hidden');
+        mainArea.classList.remove('hidden');
+        bottomNav.classList.remove('hidden');
+        headerBudgetBtn.classList.remove('hidden');
+        headerExportBtn.classList.remove('hidden');
+        headerLogoutBtn.classList.remove('hidden');
+
+        const firstName = currentUser.name ? currentUser.name.split(' ')[0] : 'Scholar';
+        document.getElementById('userGreetingName').textContent = firstName;
+        updateAppUI();
+      } else {
+        authSec.classList.remove('hidden');
+        mainArea.classList.add('hidden');
+        bottomNav.classList.add('hidden');
+        headerBudgetBtn.classList.add('hidden');
+        headerExportBtn.classList.add('hidden');
+        headerLogoutBtn.classList.add('hidden');
+      }
+    }
+
+    // AI Student Saving Tips repository
+    const studentTips = [
+      {
+        title: "🍕 The Midnight Canteen Trap",
+        desc: "Hostel tuck-shop Maggi & drinks cost 3x grocery store packs. Buy a batch from local dmart with roommates.",
+        save: "~₹1,200/mo"
+      },
+      {
+        title: "📚 Senior Book Exchange",
+        desc: "Never buy retail textbooks for sem exams. Buy 2nd-hand from senior batches or find digital library PDFs.",
+        save: "~₹2,500/sem"
+      },
+      {
+        title: "🎧 Split Family Subscriptions",
+        desc: "Split Spotify Student, Prime Student, or YouTube family plans with 5 friends rather than paying individually.",
+        save: "~₹300/mo"
+      },
+      {
+        title: "🚲 Campus Pool & Metro Smartcard",
+        desc: "Auto-rickshaw surges hurt wallet. Use metro cards with student rebate or carpool campus autos in groups of 3.",
+        save: "~₹800/mo"
+      },
+      {
+        title: "☕ Skip ₹150 Cafe Frappes",
+        desc: "Studying in cafes adds up stealthily. Pick campus library AC rooms and carry cold brew in a thermos flask.",
+        save: "~₹1,600/mo"
+      }
+    ];
+
+    let currentTipIndex = 0;
+
+    // Category Metadata for visuals
+    const categoryMeta = {
+      food: { label: 'Mess & Meals', icon: 'ph-fork-knife', color: '#10b981', border: 'border-emerald-500/30' },
+      snacks: { label: 'Canteen & Snacks', icon: 'ph-coffee', color: '#f59e0b', border: 'border-amber-500/30' },
+      books: { label: 'Books & Stationery', icon: 'ph-book-bookmark', color: '#6366f1', border: 'border-indigo-500/30' },
+      rent: { label: 'Hostel Fee / Rent', icon: 'ph-house-line', color: '#ec4899', border: 'border-pink-500/30' },
+      travel: { label: 'Travel & Transport', icon: 'ph-bus', color: '#3b82f6', border: 'border-blue-500/30' },
+      fun: { label: 'Hangouts & Fun', icon: 'ph-popcorn', color: '#a855f7', border: 'border-purple-500/30' },
+      recharge: { label: 'Recharge & WiFi', icon: 'ph-device-mobile', color: '#06b6d4', border: 'border-cyan-500/30' },
+      other: { label: 'Other Essentials', icon: 'ph-tag', color: '#64748b', border: 'border-slate-500/30' },
+      income: { label: 'Pocket Allowance', icon: 'ph-arrow-down-left', color: '#10b981', border: 'border-emerald-500/30' }
+    };
+
+    // Load initial data
+    function getStoredTransactions() {
+      const data = localStorage.getItem(getStorageKey());
+      if (!data) {
+        return getInitialSampleTransactions();
+      }
+      try {
+        return JSON.parse(data);
+      } catch (e) {
+        return [];
+      }
+    }
+
+    function saveTransactions(data) {
+      localStorage.setItem(getStorageKey(), JSON.stringify(data));
+      updateAppUI();
+    }
+
+    function getBudgetLimit() {
+      const b = localStorage.getItem(getBudgetKey());
+      return b ? parseFloat(b) : 6500; // Default ₹6,500 typical monthly allowance
+    }
+
+    function getInitialSampleTransactions() {
+      const today = new Date().toISOString().split('T')[0];
+      const samples = [
+        { id: '1', type: 'income', amount: 6500, category: 'income', note: 'Monthly Pocket Money from Home', date: today },
+        { id: '2', type: 'expense', amount: 350, category: 'books', note: 'Data Structures Lab Manual & Xerox', date: today },
+        { id: '3', type: 'expense', amount: 180, category: 'snacks', note: 'Evening Canteen Samosa & Tea with Gang', date: today },
+        { id: '4', type: 'expense', amount: 240, category: 'recharge', note: 'Data Plan 28 Days Recharge', date: today },
+        { id: '5', type: 'expense', amount: 120, category: 'travel', note: 'Campus to Metro Auto Share', date: today }
+      ];
+      localStorage.setItem(getStorageKey(), JSON.stringify(samples));
+      return samples;
+    }
+
+    /* =========================================================
+       Application UI Refresh & Metric Calculations
+       ========================================================= */
+    function updateAppUI() {
+      if (!currentUser) return;
+
+      const txs = getStoredTransactions();
+      const budget = getBudgetLimit();
+
+      let totalExpenses = 0;
+      let totalIncome = 0;
+
+      const categoryTotals = {
+        food: 0,
+        snacks: 0,
+        books: 0,
+        rent: 0,
+        travel: 0,
+        fun: 0,
+        recharge: 0,
+        other: 0
+      };
+
+      txs.forEach(t => {
+        const val = parseFloat(t.amount) || 0;
+        if (t.type === 'expense') {
+          totalExpenses += val;
+          if (categoryTotals[t.category] !== undefined) {
+            categoryTotals[t.category] += val;
+          } else {
+            categoryTotals.other += val;
+          }
+        } else if (t.type === 'income') {
+          totalIncome += val;
+        }
+      });
+
+      // Calculate remaining budget based on the configured monthly budget or total income
+      const effectiveCap = Math.max(budget, totalIncome);
+      const remaining = effectiveCap - totalExpenses;
+      const spentPercent = effectiveCap > 0 ? Math.min(100, Math.round((totalExpenses / effectiveCap) * 100)) : 0;
+
+      // Update Dashboard Texts
+      document.getElementById('totalBudgetText').textContent = `₹${effectiveCap.toLocaleString('en-IN')}`;
+      document.getElementById('totalSpentText').textContent = `₹${totalExpenses.toLocaleString('en-IN')}`;
+      document.getElementById('subTotalExpenseText').textContent = `₹${totalExpenses.toLocaleString('en-IN')}`;
+      document.getElementById('totalIncomeText').textContent = `₹${totalIncome.toLocaleString('en-IN')}`;
+      
+      const remainingElem = document.getElementById('remainingMoneyText');
+      remainingElem.textContent = `₹${remaining.toLocaleString('en-IN')}`;
+      if (remaining < 0) {
+        remainingElem.className = 'text-3xl font-black tracking-tight text-rose-400 mt-0.5';
+      } else {
+        remainingElem.className = 'text-3xl font-black tracking-tight text-white mt-0.5';
+      }
+
+      // Update Budget Progress Bar & Alert Badge
+      const progressBar = document.getElementById('budgetProgressBar');
+      progressBar.style.width = `${spentPercent}%`;
+
+      const warningNote = document.getElementById('budgetWarningNote');
+      const statusBadge = document.getElementById('budgetStatusBadge');
+
+      if (spentPercent >= 100) {
+        progressBar.className = 'bg-rose-500 h-full rounded-full transition-all duration-700';
+        warningNote.textContent = `🚨 Budget exceeded by ₹${Math.abs(remaining).toLocaleString('en-IN')}! Freeze expenses!`;
+        warningNote.className = 'text-[11px] text-rose-400 font-semibold text-right';
+        statusBadge.innerHTML = `<i class="ph-fill ph-warning-octagon"></i> Exhausted`;
+        statusBadge.className = 'text-[11px] px-2.5 py-1 rounded-lg font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30 flex items-center gap-1';
+      } else if (spentPercent >= 80) {
+        progressBar.className = 'bg-amber-400 h-full rounded-full transition-all duration-700';
+        warningNote.textContent = `⚠️ Warning: ${spentPercent}% of allowance spent! Strictly conserve.`;
+        warningNote.className = 'text-[11px] text-amber-400 font-semibold text-right';
+        statusBadge.innerHTML = `<i class="ph-fill ph-warning"></i> Caution`;
+        statusBadge.className = 'text-[11px] px-2.5 py-1 rounded-lg font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1';
+      } else {
+        progressBar.className = 'bg-gradient-to-r from-emerald-400 via-indigo-400 to-violet-400 h-full rounded-full transition-all duration-700';
+        warningNote.textContent = `${spentPercent}% spent — healthy campus balance`;
+        warningNote.className = 'text-[11px] text-slate-400 text-right';
+        statusBadge.innerHTML = `<i class="ph-fill ph-check-circle"></i> On Track`;
+        statusBadge.className = 'text-[11px] px-2.5 py-1 rounded-lg font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1';
+      }
+
+      // Daily Survival calculation
+      calculateSurvivalRate(remaining);
+
+      // Render Transaction lists & Category visual chart
+      renderTransactions();
+      renderAnalyticsChart(categoryTotals, totalExpenses);
+    }
+
+    // Days remaining in month burn rate
+    function calculateSurvivalRate(remaining) {
+      const now = new Date();
+      const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      const daysLeft = Math.max(1, (endOfMonth.getDate() - now.getDate()) + 1);
+      
+      const safeDaily = remaining > 0 ? Math.floor(remaining / daysLeft) : 0;
+      const el = document.getElementById('dailyBurnAllowance');
+      el.textContent = `₹${safeDaily.toLocaleString('en-IN')} / day (${daysLeft} days left)`;
+      
+      if (safeDaily < 80 && remaining > 0) {
+        el.className = 'text-xs font-extrabold text-rose-400 animate-pulse';
+      } else {
+        el.className = 'text-xs font-extrabold text-amber-400';
+      }
+    }
+
+    /* =========================================================
+       Transactions Rendering & Filtering
+       ========================================================= */
+    function renderTransactions() {
+      const listContainer = document.getElementById('transactionList');
+      const filter = document.getElementById('filterCategory').value;
+      const allTx = getStoredTransactions();
+
+      let filtered = [...allTx].reverse();
+      if (filter !== 'all') {
+        filtered = filtered.filter(item => {
+          if (filter === 'income') return item.type === 'income';
+          return item.category === filter;
+        });
+      }
+
+      document.getElementById('totalTransCount').textContent = `${allTx.length} total entries`;
+
+      if (filtered.length === 0) {
+        listContainer.innerHTML = `
+          <div class="py-6 text-center text-slate-500 text-xs flex flex-col items-center">
+            <i class="ph-duotone ph-magnifying-glass text-2xl mb-1 text-slate-600"></i>
+            No records found for this category.
+          </div>
+        `;
+        return;
+      }
+
+      listContainer.innerHTML = filtered.map(item => {
+        const isExpense = item.type === 'expense';
+        const meta = categoryMeta[item.category] || categoryMeta.other;
+        const sign = isExpense ? '-' : '+';
+        const amtColor = isExpense ? 'text-rose-400' : 'text-emerald-400';
+
+        return `
+          <div class="flex items-center justify-between p-3 rounded-2xl bg-slate-900/60 border border-slate-800/80 hover:border-slate-700 glass-card-hover group">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style="background-color: ${meta.color}15; color: ${meta.color}">
+                <i class="ph-bold ${meta.icon} text-lg"></i>
+              </div>
+              <div class="overflow-hidden">
+                <p class="text-xs font-bold text-slate-200 truncate max-w-[150px] sm:max-w-[220px]">${escapeHtml(item.note || meta.label)}</p>
+                <div class="flex items-center gap-1.5 text-[10px] text-slate-400">
+                  <span class="capitalize text-slate-300 font-medium">${meta.label}</span>
+                  <span>•</span>
+                  <span>${item.date || 'Recent'}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-2">
+              <span class="text-xs font-bold ${amtColor}">${sign}₹${parseFloat(item.amount).toLocaleString('en-IN')}</span>
+              <button onclick="deleteTransaction('${item.id}')" title="Delete record" class="opacity-30 group-hover:opacity-100 hover:text-rose-400 p-1 rounded-lg text-slate-400 transition">
+                <i class="ph-bold ph-trash text-sm"></i>
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function deleteTransaction(id) {
+      const txs = getStoredTransactions();
+      const updated = txs.filter(t => t.id !== id);
+      saveTransactions(updated);
+      showToast('Record deleted');
+    }
+
+    /* =========================================================
+       Chart.js Breakdown Analytics
+       ========================================================= */
+    function renderAnalyticsChart(categoryTotals, totalSpent) {
+      const ctx = document.getElementById('categoryChart').getContext('2d');
+      const placeholder = document.getElementById('emptyChartPlaceholder');
+      const barsList = document.getElementById('categoryBarsList');
+
+      const labels = [];
+      const data = [];
+      const bgColors = [];
+
+      Object.keys(categoryTotals).forEach(catKey => {
+        const val = categoryTotals[catKey];
+        if (val > 0) {
+          labels.push(categoryMeta[catKey].label);
+          data.push(val);
+          bgColors.push(categoryMeta[catKey].color);
+        }
+      });
+
+      if (data.length === 0) {
+        if (chartInstance) chartInstance.destroy();
+        placeholder.classList.remove('hidden');
+        barsList.innerHTML = '';
+        return;
+      }
+
+      placeholder.classList.add('hidden');
+
+      if (chartInstance) {
+        chartInstance.destroy();
+      }
+
+      chartInstance = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: labels,
+          datasets: [{
+            data: data,
+            backgroundColor: bgColors,
+            borderWidth: 2,
+            borderColor: '#0b0f19',
+            hoverOffset: 4
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: '72%',
+          plugins: {
+            legend: {
+              display: false
+            },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  const val = context.raw || 0;
+                  const pct = totalSpent > 0 ? Math.round((val / totalSpent) * 100) : 0;
+                  return ` ₹${val.toLocaleString('en-IN')} (${pct}%)`;
+                }
+              }
+            }
+          }
+        }
+      });
+
+      // Render top 3 expense categories bars
+      const sortedKeys = Object.keys(categoryTotals)
+        .filter(k => categoryTotals[k] > 0)
+        .sort((a, b) => categoryTotals[b] - categoryTotals[a])
+        .slice(0, 3);
+
+      barsList.innerHTML = sortedKeys.map(k => {
+        const amt = categoryTotals[k];
+        const pct = totalSpent > 0 ? Math.round((amt / totalSpent) * 100) : 0;
+        const itemMeta = categoryMeta[k];
+        return `
+          <div class="space-y-1">
+            <div class="flex justify-between text-[11px]">
+              <span class="text-slate-300 font-medium flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full" style="background-color: ${itemMeta.color}"></span>
+                ${itemMeta.label}
+              </span>
+              <span class="text-slate-400 font-semibold">₹${amt} (${pct}%)</span>
+            </div>
+            <div class="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+              <div class="h-full rounded-full" style="width: ${pct}%; background-color: ${itemMeta.color}"></div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    /* =========================================================
+       Modal & Transaction Input Controls
+       ========================================================= */
+    function openTransactionModal(type = 'expense') {
+      currentTransactionType = type;
+      setTransactionType(type);
+      
+      const modal = document.getElementById('transactionModal');
+      document.getElementById('txDate').value = new Date().toISOString().split('T')[0];
+      document.getElementById('txAmount').value = '';
+      document.getElementById('txNote').value = '';
+      modal.classList.remove('hidden');
+    }
+
+    function closeTransactionModal() {
+      document.getElementById('transactionModal').classList.add('hidden');
+    }
+
+    function setTransactionType(type) {
+      currentTransactionType = type;
+      const expBtn = document.getElementById('typeExpenseBtn');
+      const incBtn = document.getElementById('typeIncomeBtn');
+      const catGroup = document.getElementById('categoryGroup');
+      const modalTitle = document.getElementById('modalTitle');
+
+      if (type === 'expense') {
+        expBtn.className = 'py-2 rounded-xl bg-rose-600 text-white font-bold transition shadow-sm';
+        incBtn.className = 'py-2 rounded-xl text-slate-400 hover:text-white transition';
+        catGroup.classList.remove('hidden');
+        modalTitle.innerHTML = `<i class="ph-bold ph-receipt text-rose-400"></i> Log Campus Expense`;
+      } else {
+        incBtn.className = 'py-2 rounded-xl bg-emerald-600 text-white font-bold transition shadow-sm';
+        expBtn.className = 'py-2 rounded-xl text-slate-400 hover:text-white transition';
+        catGroup.classList.add('hidden');
+        modalTitle.innerHTML = `<i class="ph-bold ph-wallet text-emerald-400"></i> Add Pocket Allowance`;
+      }
+    }
+
+    function handleTransactionSubmit(e) {
+      e.preventDefault();
+      const amount = parseFloat(document.getElementById('txAmount').value);
+      const note = document.getElementById('txNote').value.trim();
+      const category = currentTransactionType === 'expense' ? document.getElementById('txCategory').value : 'income';
+      const date = document.getElementById('txDate').value || new Date().toISOString().split('T')[0];
+
+      if (!amount || isNaN(amount) || amount <= 0) {
+        showToast('Please enter a valid amount', true);
+        return;
+      }
+
+      const newTx = {
+        id: Date.now().toString(),
+        type: currentTransactionType,
+        amount: amount,
+        category: category,
+        note: note,
+        date: date
+      };
+
+      const existing = getStoredTransactions();
+      existing.push(newTx);
+      saveTransactions(existing);
+
+      closeTransactionModal();
+      showToast(currentTransactionType === 'expense' ? 'Expense logged!' : 'Pocket money credited!');
+    }
+
+    /* =========================================================
+       Monthly Budget Allowance Modal
+       ========================================================= */
+    function openBudgetModal() {
+      document.getElementById('budgetLimitInput').value = getBudgetLimit();
+      document.getElementById('budgetModal').classList.remove('hidden');
+    }
+
+    function closeBudgetModal() {
+      document.getElementById('budgetModal').classList.add('hidden');
+    }
+
+    function saveBudgetLimit() {
+      const val = parseFloat(document.getElementById('budgetLimitInput').value);
+      if (!val || val < 100) {
+        showToast('Please set a realistic allowance limit (min ₹100)', true);
+        return;
+      }
+      localStorage.setItem(getBudgetKey(), val.toString());
+      closeBudgetModal();
+      updateAppUI();
+      showToast('Monthly allowance limit saved!');
+    }
+
+    function resetAllDemoData() {
+      localStorage.removeItem(getStorageKey());
+      localStorage.removeItem(getBudgetKey());
+      getInitialSampleTransactions();
+      closeBudgetModal();
+      updateAppUI();
+      showToast('Sample student data loaded!');
+    }
+
+    /* =========================================================
+       Smart Saver Tips AI Engine
+       ========================================================= */
+    function displayCurrentTip() {
+      const tip = studentTips[currentTipIndex];
+      const box = document.getElementById('tipContentContainer');
+      box.style.opacity = '0';
+      setTimeout(() => {
+        document.getElementById('tipTitle').textContent = tip.title;
+        document.getElementById('tipDescription').textContent = tip.desc;
+        document.getElementById('tipSavings').textContent = `Potential Save: ${tip.save}`;
+        box.style.opacity = '1';
+      }, 150);
+    }
+
+    function nextSmartTip() {
+      currentTipIndex = (currentTipIndex + 1) % studentTips.length;
+      displayCurrentTip();
+    }
+
+    function applyTipChallenge() {
+      showToast('🎯 Challenge Accepted! Track your savings this week.');
+    }
+
+    /* =========================================================
+       Mobile Frame Toggle & Responsive Layouts
+       ========================================================= */
+    function toggleLayoutMode() {
+      const container = document.getElementById('appContainer');
+      const statusBar = document.getElementById('androidStatusBar');
+      const modeLabel = document.getElementById('frameModeLabel');
+
+      isPhoneFrame = !isPhoneFrame;
+
+      if (isPhoneFrame) {
+        container.className = 'phone-mockup glass-panel flex flex-col transition-all duration-300';
+        statusBar.classList.remove('hidden');
+        modeLabel.textContent = 'Phone Frame';
+      } else {
+        container.className = 'w-full max-w-4xl glass-panel rounded-3xl min-h-[85vh] flex flex-col transition-all duration-300 border border-slate-700/60 shadow-2xl';
+        statusBar.classList.add('hidden');
+        modeLabel.textContent = 'Responsive View';
+      }
+      
+      // Resize chart if active
+      if (chartInstance) {
+        setTimeout(() => chartInstance.resize(), 320);
+      }
+    }
+
+    function scrollToTop() {
+      document.getElementById('mainScrollableArea').scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    /* =========================================================
+       Utilities: Clock, Toast, Backup
+       ========================================================= */
+    function updateClock() {
+      const d = new Date();
+      let hours = d.getHours();
+      let mins = d.getMinutes();
+      mins = mins < 10 ? '0' + mins : mins;
+      const clockElem = document.getElementById('liveClock');
+      if (clockElem) clockElem.textContent = `${hours}:${mins}`;
+    }
+
+    function showToast(msg, isError = false) {
+      const toast = document.getElementById('toastNotification');
+      const text = document.getElementById('toastMessage');
+      const icon = document.getElementById('toastIcon');
+
+      text.textContent = msg;
+      if (isError) {
+        icon.className = 'ph-bold ph-warning-circle text-rose-400 text-lg';
+      } else {
+        icon.className = 'ph-bold ph-check-circle text-emerald-400 text-lg';
+      }
+
+      toast.classList.remove('translate-y-[-100px]', 'opacity-0');
+      toast.classList.add('translate-y-0', 'opacity-100');
+
+      setTimeout(() => {
+        toast.classList.remove('translate-y-0', 'opacity-100');
+        toast.classList.add('translate-y-[-100px]', 'opacity-0');
+      }, 2600);
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return str.replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+    }
+
+    function exportData() {
+      const data = getStoredTransactions();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `CampusSpend_Backup_${new Date().toISOString().split('T')[0]}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('Backup JSON exported successfully!');
+    }
+
+    // Set current month label dynamically
+    function setCurrentMonth() {
+      const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+      const now = new Date();
+      document.getElementById('currentMonthBadge').textContent = `${months[now.getMonth()]} ${now.getFullYear()}`;
+    }
+
+    /* Initialize upon page load */
+    window.onload = function() {
+      setCurrentMonth();
+      updateClock();
+      setInterval(updateClock, 30000);
+      displayCurrentTip();
+
+      // Check for saved login session
+      try {
+        const savedUser = localStorage.getItem(ACTIVE_USER_KEY);
+        if (savedUser) {
+          currentUser = JSON.parse(savedUser);
+        }
+      } catch (e) {
+        currentUser = null;
+      }
+
+      syncAuthViewState();
+    };
+  </script>
+</body>
+</html>
